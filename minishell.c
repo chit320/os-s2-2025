@@ -82,8 +82,6 @@ static void reap_background(void) {
   }
 }
 
-void prompt(void);
-
 /* argk - number of arguments */
 /* argv - argument vector from command line */
 /* envp - environment pointer */
