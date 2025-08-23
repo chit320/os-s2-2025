@@ -67,11 +67,22 @@ static void add_job(pid_t pid, const char *cmdline)
   fprintf(stderr, "Jobs table full; not tracking pid %d\n", (int)pid);
 }
 
-void prompt(void)
-{
-  fprintf(stdout, "\n msh> ");
-  fflush(stdout);
+static void reap_background(void) {
+  int status;
+  pid_t p;
+  while ((p = waitpid(-1, &status, WNOHANG)) > 0) {
+    for (int i = 0; i < MAXJ; i++) {
+      if (jobs[i].active && jobs[i].pid == p) {
+        jobs[i].active = 0;
+        printf("[%d]+ Done                 %s\n", jobs[i].id, jobs[i].cmdline);
+        fflush(stdout);
+        break;
+      }
+    }
+  }
 }
+
+void prompt(void);
 
 /* argk - number of arguments */
 /* argv - argument vector from command line */
@@ -126,8 +137,6 @@ int main(int argk, char *argv[], char *envp[])
     default: /* code executed only by parent process */
     {
       wait(0);
-      // REMOVE PRINTF STATEMENT BEFORE SUBMISSION
-      printf("%s done \n", v[0]);
       break;
     }
     } /* switch */
