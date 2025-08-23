@@ -98,8 +98,11 @@ int main(int argk, char *argv[], char *envp[])
 
   while (1)
   { /* do Forever */
+    reap_background();
     prompt();
+
     fgets(line, NL, stdin);
+
     fflush(stdin);
 
     // This if() required for gradescope
@@ -107,6 +110,7 @@ int main(int argk, char *argv[], char *envp[])
     { /* non-zero on EOF  */
       exit(0);
     }
+
     if (line[0] == '#' || line[0] == '\n' || line[0] == '\000')
     {
       continue; /* to prompt */
@@ -123,22 +127,49 @@ int main(int argk, char *argv[], char *envp[])
     }
     /* assert i is number of tokens + 1 */
 
+    /* Detect background '&' */
+    int bg = 0;
+    if (i > 0 && v[i-1] && strcmp(v[i-1], "&") == 0) {
+      bg = 1;
+      v[i-1] = NULL;  /* remove '&' from argv */
+      i--;
+    }
+
+    if (v[0] && strcmp(v[0], "cd") == 0) {
+      const char *path = v[1];
+      if (!path) {
+        path = getenv("HOME");
+        if (!path) path = "/";
+      }
+      if (chdir(path) == -1) {
+        perror("chdir");
+      }
+      continue; /* back to prompt without forking */
+    }
+
     /* fork a child process to exec the command in v[0] */
-    switch (frkRtnVal = fork())
-    {
-    case -1: /* fork returns error to parent process */
-    {
-      break;
-    }
-    case 0: /* code executed only by child process */
-    {
-      execvp(v[0], v);
-    }
-    default: /* code executed only by parent process */
-    {
-      wait(0);
-      break;
-    }
-    } /* switch */
-  } /* while */
-} /* main */
+    switch (frkRtnVal = fork()) {
+      case -1: {           /* fork returns error to parent process */
+        perror("fork");
+        break;
+      }
+      case 0: {            /* code executed only by child process */
+        execvp(v[0], v);
+        perror("execvp");
+        _exit(127);        /* child terminates on exec failure */
+      }
+      default: {           /* code executed only by parent process */
+        if (bg) {
+          char cmdline[NL];
+          build_cmdline(cmdline, sizeof(cmdline), v);
+          add_job(frkRtnVal, cmdline);
+        } else {
+          if (waitpid(frkRtnVal, NULL, 0) == -1) {
+            perror("waitpid");
+          }
+        }
+        break;
+      }
+    }               /* switch */
+  }                 /* while */
+}                 /* main */
