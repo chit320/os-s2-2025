@@ -145,7 +145,7 @@ int main(int argk, char *argv[], char *envp[])
     int bg = 0;
     if (i > 0 && v[i-1] && strcmp(v[i-1], "&") == 0) {
       bg = 1;
-      v[i-1] = NULL;  /* remove '&' from argv */
+      v[i-1] = NULL;
       i--;
     }
 
